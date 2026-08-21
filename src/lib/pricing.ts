@@ -51,6 +51,14 @@ export interface Status {
   nextChangeMinutes: number | null;
 }
 
+export interface DayStripSegment {
+  /** Fraction (0..1) of the local day where the window begins. */
+  start: number;
+  /** Fraction (0..1) of the local day where the window ends. */
+  end: number;
+  isActive: boolean;
+}
+
 const MINUTES_PER_DAY = 24 * 60;
 
 /** "HH:MM" -> minutes since midnight (0..1439). Throws on malformed input. */
@@ -80,13 +88,20 @@ export function isPeakAt(pricing: PricingData, date: Date): boolean {
 
 /**
  * Minutes until the peak/off-peak status next flips (0..1439), or null if the
- * pricing data has no windows. 0 means we are exactly on a boundary.
+ * pricing data has no windows. 0 only when we are exactly on a boundary.
+ *
+ * Computed in seconds: with minute precision, the just-passed edge of a
+ * window computes as "0 minutes away" for the whole first minute after a
+ * flip, which would claim the new tier ends right as it begins.
  */
 export function minutesUntilNextChange(pricing: PricingData, date: Date): number | null {
-  const now = date.getUTCHours() * 60 + date.getUTCMinutes();
+  const now = date.getUTCHours() * 3600 + date.getUTCMinutes() * 60 + date.getUTCSeconds();
   const edges = pricing.peakWindows.flatMap((w) => [toMinutes(w.start), toMinutes(w.end)]);
   if (edges.length === 0) return null;
-  return Math.min(...edges.map((edge) => (edge - now + MINUTES_PER_DAY) % MINUTES_PER_DAY));
+  const SECONDS_PER_DAY = MINUTES_PER_DAY * 60;
+  return Math.min(
+    ...edges.map((edge) => Math.floor(((edge * 60 - now + SECONDS_PER_DAY) % SECONDS_PER_DAY) / 60)),
+  );
 }
 
 /** Local calendar date of an instant, as a comparable string ("2026-08-21"). */
@@ -195,4 +210,74 @@ export function formatMinutesHuman(total: number): string {
   const m = total % 60;
   if (h === 0) return `${m}m`;
   return `${h}h ${m}m`;
+}
+
+const dayPartFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Minutes since local midnight (0..1439) of an instant, in the given timezone. */
+function localMinutesOfDay(date: Date, tz: string): number {
+  let fmt = dayPartFormatters.get(tz);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: tz,
+    });
+    dayPartFormatters.set(tz, fmt);
+  }
+  const parts = fmt.formatToParts(date);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return h * 60 + m;
+}
+
+/**
+ * The peak windows drawn on a 24-hour timeline of the *local* day, as
+ * fractions (0..1) of that day. A window that crosses local midnight becomes
+ * two segments. Uses the same "project the window onto ref's UTC day" trick as
+ * formatMinutes, so segment edges agree exactly with the window labels.
+ */
+export function dayStripSegments(
+  pricing: PricingData,
+  ref: Date,
+  tz: string = getTimeZoneLabel(),
+): DayStripSegment[] {
+  const utcMinutes = ref.getUTCHours() * 60 + ref.getUTCMinutes();
+  const day = MINUTES_PER_DAY;
+  const segments: DayStripSegment[] = [];
+  for (const window of pricing.peakWindows) {
+    const start = toMinutes(window.start);
+    const end = toMinutes(window.end);
+    const isActive = isInWindow(window, utcMinutes);
+    if (start === end) {
+      segments.push({ start: 0, end: 1, isActive }); // whole-day window
+      continue;
+    }
+    const s = new Date(ref);
+    s.setUTCHours(Math.floor(start / 60), start % 60, 0, 0);
+    const e = new Date(ref);
+    e.setUTCHours(Math.floor(end / 60), end % 60, 0, 0);
+    const ls = localMinutesOfDay(s, tz);
+    const le = localMinutesOfDay(e, tz);
+    if (ls < le) {
+      segments.push({ start: ls / day, end: le / day, isActive });
+    } else if (ls > le) {
+      // Crosses local midnight: draw the two ends separately.
+      segments.push(
+        { start: ls / day, end: 1, isActive },
+        { start: 0, end: le / day, isActive },
+      );
+    }
+    // ls === le only when a DST shift maps both edges to the same local
+    // minute; draw nothing rather than mislabel the whole day.
+  }
+  return segments;
+}
+
+/** Fraction (0..1) of the local day elapsed at `ref` — the strip's "now" marker. */
+export function nowDayFraction(ref: Date, tz: string = getTimeZoneLabel()): number {
+  const parts = clockFormatter(tz).formatToParts(ref);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? '0');
+  return (get('hour') * 3600 + get('minute') * 60 + get('second')) / 86400;
 }
