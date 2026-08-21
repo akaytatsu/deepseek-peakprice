@@ -4,13 +4,33 @@
   --text: #1c2330;
   --text-muted: #5c6779;
   --border: #e4e8ef;
-  --accent: #4d6bfe;
+  --accent: #4b5fe0; /* footer link — ≥4.5:1 on --bg and white */
   --peak: #b45309; /* amber — peak rate */
   --peak-bg: #fff3e0;
   --peak-border: #f2c98f;
   --off-peak: #15803d; /* green — off-peak rate */
   --off-peak-bg: #e8f7ee;
   --off-peak-border: #b7e0c6;
+}
+
+/* Dark variant — operators check this page from dark rooms/terminals at odd
+   hours; every pairing below verifies ≥4.5:1. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1116;
+    --card-bg: #161b23;
+    --text: #e8ecf3;
+    --text-muted: #9aa6b8;
+    --border: #262d38;
+    --accent: #8299ff;
+    --peak: #fbbf24;
+    --peak-bg: #332408;
+    --peak-border: #7c521c;
+    --off-peak: #4ade80;
+    --off-peak-bg: #10241a;
+    --off-peak-border: #2e6b45;
+  }
 }
 
 * {
@@ -84,6 +104,13 @@ body {
   }
   50% {
     opacity: 0.35;
+  }
+}
+
+/* The pulse is decorative — the label text carries the status. */
+@media (prefers-reduced-motion: reduce) {
+  .badge-dot {
+    animation: none;
   }
 }
 
@@ -263,7 +290,8 @@ body {
   color: var(--accent);
 }
 
-@media (max-width: 480px) {
+/* 640px, not 480px: keeps the nowrap price cells off the 481–640px edge. */
+@media (max-width: 640px) {
   .hero-clock {
     font-size: 1.7rem;
   }

@@ -114,6 +114,24 @@ function timeFormatter(tz: string): Intl.DateTimeFormat {
   return fmt;
 }
 
+/** Same memoization for the H:M:S clock, rebuilt once per timezone per second. */
+const clockFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function clockFormatter(tz: string): Intl.DateTimeFormat {
+  let fmt = clockFormatters.get(tz);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+      timeZone: tz,
+    });
+    clockFormatters.set(tz, fmt);
+  }
+  return fmt;
+}
+
 function formatMinutes(minutes: number, ref: Date, tz: string): string {
   const d = new Date(ref.getTime()); // project onto the ref's UTC day
   d.setUTCHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
@@ -164,20 +182,8 @@ export function getStatus(pricing: PricingData, now: Date): Status {
     isPeak: isPeakAt(pricing, now),
     now,
     tzLabel,
-    localTimeLabel: new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-      timeZone: tzLabel,
-    }).format(now),
-    utcTimeLabel: new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-      timeZone: 'UTC',
-    }).format(now),
+    localTimeLabel: clockFormatter(tzLabel).format(now),
+    utcTimeLabel: clockFormatter('UTC').format(now),
     windowsLocal: localWindows(pricing, now, tzLabel),
     nextChangeMinutes: minutesUntilNextChange(pricing, now),
   };
