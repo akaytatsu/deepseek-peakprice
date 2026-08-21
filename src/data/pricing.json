@@ -1,0 +1,61 @@
+{
+  "fetchedAt": "2026-08-21T12:10:09.412Z",
+  "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+  "currency": "USD",
+  "unit": "per 1M tokens",
+  "peakWindows": [
+    {
+      "start": "01:00",
+      "end": "04:00"
+    },
+    {
+      "start": "06:00",
+      "end": "10:00"
+    }
+  ],
+  "offPeakNote": "Off-peak rates are half of the peak rates.",
+  "models": {
+    "deepseek-v4-flash": {
+      "cacheHit": {
+        "offPeak": 0.007,
+        "peak": 0.014
+      },
+      "cacheMiss": {
+        "offPeak": 0.22,
+        "peak": 0.44
+      },
+      "output": {
+        "offPeak": 0.66,
+        "peak": 1.32
+      }
+    },
+    "deepseek-v4-pro": {
+      "cacheHit": {
+        "offPeak": 0.022,
+        "peak": 0.044
+      },
+      "cacheMiss": {
+        "offPeak": 0.66,
+        "peak": 1.32
+      },
+      "output": {
+        "offPeak": 1.98,
+        "peak": 3.96
+      }
+    },
+    "deepseek-v4-flash-vision-exp": {
+      "cacheHit": {
+        "offPeak": 0.007,
+        "peak": 0.014
+      },
+      "cacheMiss": {
+        "offPeak": 0.22,
+        "peak": 0.44
+      },
+      "output": {
+        "offPeak": 0.66,
+        "peak": 1.32
+      }
+    }
+  }
+}
