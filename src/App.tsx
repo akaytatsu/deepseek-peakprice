@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import rawPricing from './data/pricing.json';
 import {
   formatMinutesHuman,
@@ -34,7 +34,13 @@ function TierPrices({ tier }: { tier: { offPeak: number; peak: number } }) {
   );
 }
 
-function PricingTable({ models }: { models: Record<string, ModelPrices> }) {
+/* `pricing` is a module constant, so memo means the table renders once
+   instead of on every 1s clock tick. */
+const PricingTable = memo(function PricingTable({
+  models,
+}: {
+  models: Record<string, ModelPrices>;
+}) {
   return (
     <table className="pricing-table">
       <thead>
@@ -69,7 +75,7 @@ function PricingTable({ models }: { models: Record<string, ModelPrices> }) {
       </tbody>
     </table>
   );
-}
+});
 
 export default function App() {
   const [now, setNow] = useState(() => new Date());
