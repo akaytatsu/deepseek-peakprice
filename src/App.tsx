@@ -4,6 +4,7 @@ import {
   dayStripSegments,
   formatMinutesHuman,
   getStatus,
+  isWeekendOffPeak,
   nowDayFraction,
   type ModelPrices,
   type PricingData,
@@ -104,6 +105,7 @@ export default function App() {
   const dataAge = fetchedAtValid ? formatAge(fetchedAt, now) : null;
   const segments = dayStripSegments(pricing, now);
   const nowFraction = nowDayFraction(now);
+  const weekendOffPeak = isWeekendOffPeak(pricing, now);
 
   /* Keep the tab glanceable: the status prefix flips with the rate tier. */
   useEffect(() => {
@@ -202,6 +204,10 @@ export default function App() {
                 ))}
               </ul>
             </>
+          ) : weekendOffPeak ? (
+            /* Weekend first: "no windows" is misleading when the rule is
+               "no peak windows today, by policy". */
+            <p className="hint">Weekend — all-day off-peak rates.</p>
           ) : (
             <p className="hint">No peak windows are defined in the bundled data.</p>
           )}

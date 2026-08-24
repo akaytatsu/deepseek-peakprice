@@ -109,6 +109,21 @@ function parsePricing(html) {
     throw new Error('No HH:MM - HH:MM ranges found in the peak-hours sentence');
   }
 
+  // 1b. Weekday-only constraint — the peak-hours sentence may restrict the
+  //     windows to weekdays ("Monday through Friday", "weekdays"). When
+  //     detected, the whole weekend is off-peak; when absent, windows apply
+  //     every day. Warn-only canary (like the 2x invariant below): a missing
+  //     clause means the policy drifted, not that the parse failed.
+  const weekdayOnly = /monday\s*(?:through|-|–|—)\s*friday|weekdays?\b/i.test(sentence);
+  if (weekdayOnly) {
+    console.log('[fetch-pricing] weekend rule detected: peak hours are weekdays only');
+  } else {
+    console.warn(
+      '[fetch-pricing] warning: peak-hours sentence no longer mentions weekdays; ' +
+        'assuming windows apply every day (weekendOffPeak=false)',
+    );
+  }
+
   // 2. Off-peak discount note (verbatim, only if present).
   const offPeakNote = /off-peak rates are half of the peak rates/i.test(text)
     ? 'Off-peak rates are half of the peak rates.'
@@ -245,6 +260,7 @@ function parsePricing(html) {
     currency: 'USD',
     unit: 'per 1M tokens',
     peakWindows: windows,
+    weekendOffPeak: weekdayOnly,
     ...(offPeakNote ? { offPeakNote } : {}),
     models: modelData,
   };

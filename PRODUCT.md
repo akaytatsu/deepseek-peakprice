@@ -25,7 +25,7 @@ Visitors check the page ad-hoc from anywhere; the timezone display adapts automa
 ## Capabilities and Constraints
 
 - One page: current PEAK/OFF-PEAK status badge, local + UTC clock (updates every second), countdown to next rate change, peak windows in local time with "now" / "(next day)" markers, price table (model × cache hit / cache miss / output; off-peak / peak; USD per 1M tokens).
-- Off-peak rates are exactly half of peak rates; peak windows currently 01:00–04:00 and 06:00–10:00 UTC (both may change — windows are scraped, not hardcoded).
+- Off-peak rates are exactly half of peak rates; peak windows are 01:00–04:00 and 06:00–10:00 UTC, Monday through Friday only — weekends are off-peak all day (windows and the weekday rule are scraped, not hardcoded).
 - Three models: deepseek-v4-flash, deepseek-v4-pro, deepseek-v4-flash-vision-exp.
 - No backend, no runtime network calls; all timezone math client-side via `Intl` (DST-safe).
 - Static hosting on GitHub Pages under `/deepseek-peakprice/`; English only.
@@ -38,7 +38,7 @@ Visitors check the page ad-hoc from anywhere; the timezone display adapts automa
 
 ## Evidence on Hand
 
-- Committed pricing data: `src/data/pricing.json` (fetched 2026-08-21T12:10:09Z — 3 models, peak windows, off-peak note).
+- Committed pricing data: `src/data/pricing.json` (fetched 2026-08-24T08:41:39Z — 3 models, peak windows, weekend-off-peak rule, off-peak note).
 - Source of truth: https://api-docs.deepseek.com/quick_start/pricing/ (fetched at build time by `scripts/fetch-pricing.mjs`).
 - `README.md` documents the mechanism and GitHub Pages deployment.
 - No testimonials, customers, benchmarks, or press exist — future work must not fabricate them.
