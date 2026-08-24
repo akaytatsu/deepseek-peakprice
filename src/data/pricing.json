@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-08-21T13:17:10.508Z",
+  "fetchedAt": "2026-08-24T08:44:24.038Z",
   "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
   "currency": "USD",
   "unit": "per 1M tokens",
@@ -13,6 +13,7 @@
       "end": "10:00"
     }
   ],
+  "weekendOffPeak": true,
   "offPeakNote": "Off-peak rates are half of the peak rates.",
   "models": {
     "deepseek-v4-flash": {

@@ -30,6 +30,9 @@ export interface PricingData {
   currency: string;
   unit: string;
   peakWindows: TimeWindow[];
+  /** When true, peak windows apply only Monday–Friday (UTC); weekends are
+      off-peak all day. Absent/undefined = windows apply every day. */
+  weekendOffPeak?: boolean;
   offPeakNote?: string;
   models: Record<string, ModelPrices>;
 }
@@ -80,28 +83,62 @@ export function isInWindow(window: TimeWindow, minutes: number): boolean {
   return minutes >= start || minutes < end; // window crossing midnight
 }
 
-/** True if the price is at peak rate at the given instant (UTC windows). */
+/** True if `date` is a UTC Saturday (6) or Sunday (0). */
+export function isWeekendUTC(date: Date): boolean {
+  const day = date.getUTCDay();
+  return day === 0 || day === 6;
+}
+
+/** True when the weekend rule makes this instant all-day off-peak. */
+export function isWeekendOffPeak(pricing: PricingData, date: Date): boolean {
+  return pricing.weekendOffPeak === true && isWeekendUTC(date);
+}
+
+/** True if the price is at peak rate at the given instant (UTC windows,
+ *  weekdays only when the weekend rule is active). */
 export function isPeakAt(pricing: PricingData, date: Date): boolean {
   const now = date.getUTCHours() * 60 + date.getUTCMinutes();
-  return pricing.peakWindows.some((w) => isInWindow(w, now));
+  return (
+    !isWeekendOffPeak(pricing, date) && pricing.peakWindows.some((w) => isInWindow(w, now))
+  );
 }
 
 /**
- * Minutes until the peak/off-peak status next flips (0..1439), or null if the
- * pricing data has no windows. 0 only when we are exactly on a boundary.
+ * Minutes until the peak/off-peak status next flips, or null if the pricing
+ * data has no windows. 0 only when we are exactly on a boundary.
+ *
+ * Scans forward up to a week (the schedule is weekly-periodic): every window
+ * edge is a candidate, but an edge only counts when the status actually
+ * flips there — weekend edges (all-day off-peak) and the far side of a
+ * window that crosses midnight are no-ops.
  *
  * Computed in seconds: with minute precision, the just-passed edge of a
  * window computes as "0 minutes away" for the whole first minute after a
  * flip, which would claim the new tier ends right as it begins.
  */
 export function minutesUntilNextChange(pricing: PricingData, date: Date): number | null {
-  const now = date.getUTCHours() * 3600 + date.getUTCMinutes() * 60 + date.getUTCSeconds();
-  const edges = pricing.peakWindows.flatMap((w) => [toMinutes(w.start), toMinutes(w.end)]);
-  if (edges.length === 0) return null;
+  if (pricing.peakWindows.length === 0) return null;
   const SECONDS_PER_DAY = MINUTES_PER_DAY * 60;
-  return Math.min(
-    ...edges.map((edge) => Math.floor(((edge * 60 - now + SECONDS_PER_DAY) % SECONDS_PER_DAY) / 60)),
-  );
+  const nowSec = date.getUTCHours() * 3600 + date.getUTCMinutes() * 60 + date.getUTCSeconds();
+  let best: number | null = null;
+  for (let day = 0; day < 7; day++) {
+    for (const window of pricing.peakWindows) {
+      for (const edge of [toMinutes(window.start), toMinutes(window.end)]) {
+        const absSec = day * SECONDS_PER_DAY + edge * 60;
+        if (absSec < nowSec) continue; // already passed
+        const delta = absSec - nowSec;
+        if (best !== null && delta >= best) continue;
+        // An edge is only a "change" if the tier differs on either side.
+        // absSec counts from the start of `date`'s UTC day, so rebuild the
+        // instant from midnight — adding it to the raw instant would shift
+        // the edge by the time of day.
+        const at = new Date(date.getTime() - nowSec * 1000 + absSec * 1000);
+        if (isPeakAt(pricing, at) === isPeakAt(pricing, new Date(at.getTime() - 1000))) continue;
+        best = delta;
+      }
+    }
+  }
+  return best === null ? null : Math.floor(best / 60);
 }
 
 /** Local calendar date of an instant, as a comparable string ("2026-08-21"). */
@@ -176,6 +213,7 @@ export function localWindows(
   ref: Date,
   tz: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
 ): LocalWindow[] {
+  if (isWeekendOffPeak(pricing, ref)) return []; // no peak windows today
   const now = ref.getUTCHours() * 60 + ref.getUTCMinutes();
   return pricing.peakWindows.map((w) => ({
     ...w,
@@ -204,10 +242,12 @@ export function getStatus(pricing: PricingData, now: Date): Status {
   };
 }
 
-/** "92" -> "1h 32m" (for the status countdown). */
+/** "92" -> "1h 32m"; multi-day spans (weekend countdowns) -> "2d 7h". */
 export function formatMinutesHuman(total: number): string {
-  const h = Math.floor(total / 60);
+  const d = Math.floor(total / 1440);
+  const h = Math.floor((total % 1440) / 60);
   const m = total % 60;
+  if (d > 0) return `${d}d ${h}h`;
   if (h === 0) return `${m}m`;
   return `${h}h ${m}m`;
 }
@@ -243,6 +283,7 @@ export function dayStripSegments(
   ref: Date,
   tz: string = getTimeZoneLabel(),
 ): DayStripSegment[] {
+  if (isWeekendOffPeak(pricing, ref)) return []; // no peak windows today
   const utcMinutes = ref.getUTCHours() * 60 + ref.getUTCMinutes();
   const day = MINUTES_PER_DAY;
   const segments: DayStripSegment[] = [];

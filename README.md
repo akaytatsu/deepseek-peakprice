@@ -9,8 +9,8 @@ Live site: <https://akaytatsu.github.io/deepseek-peakprice/>
 
 | Step | What happens |
 | --- | --- |
-| **Build time** | `scripts/fetch-pricing.mjs` fetches the [DeepSeek pricing page](https://api-docs.deepseek.com/quick_start/pricing/), extracts the peak windows and the off-peak/peak prices per model, and writes them to `src/data/pricing.json` (committed). Runs automatically before `npm run dev` and `npm run build` (`predev` / `prebuild` hooks). |
-| **Runtime** | The app checks the current UTC time against the peak windows and renders the result in the user's timezone via the `Intl` API — no backend, no network calls. |
+| **Build time** | `scripts/fetch-pricing.mjs` fetches the [DeepSeek pricing page](https://api-docs.deepseek.com/quick_start/pricing/), extracts the peak windows (including the Monday–Friday-only rule), the off-peak/peak prices per model, and writes them to `src/data/pricing.json` (committed). Runs automatically before `npm run dev` and `npm run build` (`predev` / `prebuild` hooks). |
+| **Runtime** | The app checks the current UTC time and weekday against the peak windows and renders the result in the user's timezone via the `Intl` API — no backend, no network calls. |
 
 The pricing data is committed to the repository, so the site always works, even
 if the DeepSeek page is unreachable during a build (the fetch falls back to the
