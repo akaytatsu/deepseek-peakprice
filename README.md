@@ -28,6 +28,10 @@ make restart   # restart the dev environment
 make logs      # follow the dev server logs
 ```
 
+The container runs as the unprivileged `node` user (uid 1000), not root, and
+mounts the checkout at `/app` — so the repository directory has to be writable
+by that uid on Linux hosts.
+
 Without Docker (needs Node ≥ 18.17):
 
 ```sh
